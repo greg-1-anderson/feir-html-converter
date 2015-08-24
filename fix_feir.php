@@ -44,10 +44,19 @@ foreach ($input_files as $file) {
   // and make an entry in the page map for it.
   // We will use the page map to add links to the
   // table of contents.
-  if (preg_match('/span id="\*17"[^>]*>([1-9][0-9.]*)-([1-9][0-9]*)/', $page, $matches)) {
+  if (preg_match_all('/span id="\*[0-9]*"[^>]*>([1-9][0-9\.]*)-([1-9][0-9]*)/', $page, $match_sets, PREG_SET_ORDER)) {
+    $matches = array_pop($match_sets);
     $key = $matches[1];
     $pg = sprintf("%04d", $matches[2]);
     $dir = dirname($file);
+    // TODO:  We could use MATH here.
+    //
+    // This will make entries that look like this:
+    //      '#DIRECTORY_NAME_2.10.3#/pg_0001.htm' => '2-10_individuals-rtc_feir/pg_0019.htm',
+    // From here on out, all other entries in section
+    // 2.10.3 will always point from page N to page (19 - 1) + N.
+    // So, we could store only the first entry, and do math
+    // to calculate the page of the others.  Maybe later.
     $page_map["#DIRECTORY_NAME_${key}#/pg_$pg.htm"] = $file;
   }
 
@@ -55,7 +64,7 @@ foreach ($input_files as $file) {
   // entry in the reference map for it.  We will use the
   // reference map to make back-links from the original
   // question to the place that references it.
-  if (preg_match_all('@\<div[^>]*style="[^"]*top:\s*([^;]*);[^>]*>\<span id="\*22"[^>]*>([a-zA-Z][a-zA-Z0-9]*-[1-9][0-9]*)@im', $page, $match_sets, PREG_SET_ORDER)) {
+  if (preg_match_all('@\<div[^>]*style="[^"]*top:\s*([^;]*);[^>]*>\<span id="\*[0-9]*"[^>]*>([a-zA-Z][a-zA-Z0-9]*-[1-9][0-9]*)@im', $page, $match_sets, PREG_SET_ORDER)) {
     foreach ($match_sets as $matches) {
       $top = $matches[1];
       $reference_label = $matches[2];
@@ -88,6 +97,8 @@ foreach ($input_files as $file) {
     $page = fix_page($page, $file);
   }
 
+  $page = fix_common($page);
+
   // Fix up the directory names in links
   $page = str_replace(array_keys($page_map), array_values($page_map), $page);
   $page = str_replace(array_keys($dir_map), array_values($dir_map), $page);
@@ -112,7 +123,7 @@ foreach ($input_files as $file) {
     }
   }
 
-  $page = fix_common($page);
+  $page = fix_links($page);
 
   file_put_contents($output, $page);
 }

@@ -174,6 +174,10 @@ function fix_common($page) {
   // Add hyperlinks to page references
   $page = preg_replace('@<span id="\*[0-9]*"([^>]*)>([0-9.]*)-([0-9]*)([^a-zA-Z0-9<]*)</span>@', '<span id="*20"${1}><a href="../#DIRECTORY_NAME_${2}#/pg_000$3.htm">${2}-${3}${4}</a></span>', $page);
 
+  return fix_links($page);
+}
+
+function fix_links($page) {
   // Fix links from absolute paths to the original pdfs to relative links to the html
   $page = preg_replace("@file://localhost/[^.]*/([^.]*)\.pdf#page=([0-9]*)@", '../${1}/pg_000${2}.htm', $page);
   $page = preg_replace("/_000([1-9][0-9][0-9][0-9])\./", '_${1}.', $page);

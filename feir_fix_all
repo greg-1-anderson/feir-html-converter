@@ -7,18 +7,20 @@ base_dir="$(echo "$1" | sed -e 's#/*$##')"
 output_dir="$base_dir-FIXED"
 
 #
+# Copy all of the .png files
+#
+for input in $(find "$base_dir" -name "*.png" | grep -v ' ')
+do
+  output="$(echo $input | sed -e "s#$base_dir#$output_dir#")"
+  if [ ! -f "$output" ]
+  then
+    echo $input # $output
+    mkdir -p "$(dirname "$output")"
+    cp "$input" "$output"
+  fi
+done
+
+#
 # Call the fix-it script to fix up all of the .htm files
 #
 php $fix_script $base_dir $output_dir
-
-#
-# Copy all of the .png files
-#
-for input in $(find "$base_dir" -name "*.png")
-do
-  output="$(echo $input | sed -e "s#$base_dir#$output_dir#")"
-  echo $input # $output
-
-  mkdir -p "$(dirname "$output")"
-  cp "$input" "$output"
-done

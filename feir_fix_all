@@ -1,0 +1,24 @@
+#!/bin/bash
+
+script_dir="$(dirname "$0")"
+fix_script="$script_dir/fix_feir.php"
+create_index_script="$script_dir/create_feir_index.php"
+base_dir="$(echo "$1" | sed -e 's#/*$##')"
+output_dir="$base_dir-FIXED"
+
+#
+# Call the fix-it script to fix up all of the .htm files
+#
+php $fix_script $base_dir $output_dir
+
+#
+# Copy all of the .png files
+#
+for input in $(find "$base_dir" -name "*.png")
+do
+  output="$(echo $input | sed -e "s#$base_dir#$output_dir#")"
+  echo $input # $output
+
+  mkdir -p "$(dirname "$output")"
+  cp "$input" "$output"
+done

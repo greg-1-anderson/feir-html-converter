@@ -20,7 +20,7 @@ foreach($dir_list as $dir) {
   if (preg_match('/^([0-9-]*)_/', $dir, $matches)) {
     $key = strtr($matches[1], '-', '.');
     if (!empty($key[0])) {
-      $dir_map["#DIRECTORY_NAME_${key}#"] = $dir;
+      $dir_map["###_${key}#"] = $dir;
     }
 
     // Build a list of input files to process
@@ -59,7 +59,7 @@ foreach ($input_files as $file) {
         // We can use MATH here.
         //
         // This will make entries that look like this:
-        //      '#DIRECTORY_NAME_2.10.3#/pg_0001.htm' => '2-10_individuals-rtc_feir/pg_0019.htm',
+        //      '###_2.10.3#/pg_0001.htm' => '2-10_individuals-rtc_feir/pg_0019.htm',
         // From here on out, all other entries in section
         // 2.10.3 will always point from page N to page (19 - 1) + N.
         // So, we could store only the first entry, and do math
@@ -83,7 +83,7 @@ foreach ($input_files as $file) {
         }
 
         // Make an entry in the page map
-        $k = "#DIRECTORY_NAME_${key}#/pg_$pg_leading_zeros.htm";
+        $k = "###_${key}#/pg_$pg_leading_zeros.htm";
         $page_map[$k] = $file;
       }
     }
@@ -122,7 +122,7 @@ foreach ($chapter_pages as $key => $file_info) {
     }
     for ($pg = 1; $pg <= $max; $pg++) {
       $pg_leading_zeros = sprintf("%04d", $pg + $delta);
-      $k = "#DIRECTORY_NAME_${key}#/pg_$pg_leading_zeros.htm";
+      $k = "###_${key}#/pg_$pg_leading_zeros.htm";
       $file_pg = $pg + $base;
       $file_pg_leading_zeros = sprintf("%04d", $file_pg);
       $file = $base_file . "/pg_$file_pg_leading_zeros.htm";
@@ -201,6 +201,10 @@ foreach ($input_files as $file) {
   }
 
   $page = fix_links($page);
+
+  // Remove any unreplaced page references; most of these were
+  // probably linked in error.
+  $page = preg_replace('@<a href="../###_[^"]*">([^<]*)</a>@', '${1}', $page);
 
   file_put_contents($output, $page);
 }

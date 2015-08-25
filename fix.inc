@@ -172,7 +172,7 @@ function fix_common($page) {
   $page = preg_replace("#A:hover {text-decoration: underline; color:red}#", 'A:hover {text-decoration: none; color: black; border-bottom: 1px solid red;}', $page);
 
   // Add hyperlinks to page references
-  $page = preg_replace('@<span id="\*[0-9]*"([^>]*)>([0-9.]*)-([0-9]*)([^a-zA-Z0-9<]*)</span>@', '<span id="*20"${1}><a href="../#DIRECTORY_NAME_${2}#/pg_000$3.htm">${2}-${3}${4}</a></span>', $page);
+  $page = preg_replace('@<span id="\*[0-9]*"([^>]*)>([0-9.]*)-([0-9]*)([^a-zA-Z0-9<]*)</span>@', '<span id="*20"${1}><a href="../###_${2}#/pg_000$3.htm">${2}-${3}${4}</a></span>', $page);
 
   return fix_links($page);
 }

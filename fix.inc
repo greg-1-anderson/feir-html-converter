@@ -124,7 +124,26 @@ function find_reference_url($page, $top) {
 }
 
 
+function fix_early($page) {
+  // Convert "Meeting NNN-MMM" to "MeetingNNN-MMM" so that
+  // it follows the same pattern as the other sections.
+  $page = preg_replace('#(Meeting|SFBA|CPA)</span></div>\s*
+<div[^>]*><span[^>]*>([1-9][0-9]*-[1-9][0-9]*)#im', '${1}${2}', $page);
+
+  // When there are multiple links back to back with no
+  // intervening text, join them together into a single link.
+  // The general-case expression sometimes joined together
+  // links with different targets.  Removing these correctly
+  // with a back-reference is not convenient, so we'll just
+  // special-case a few common instances where this happens.
+  $page = preg_replace("#(Master|Response|\[See|[1-9][0-9]*-[1-9][0-9]*|for|the|original|comment\])</span></a></div>[ \t\n]*<div[^>]*><a[^>]*><span[^>]*>#m", '${1} ', $page);
+
+  return $page;
+}
+
 function fix_page($page, $input) {
+  $page = fix_early($page);
+
   // Fix the page title -- convert the input path into a title string
   $section_number = section_number($input);
   $pg_number = page_number($input);
@@ -155,14 +174,6 @@ function fix_page($page, $input) {
 
   // Convert the background image into a thumbnail. Clicking on it will show the original background image.
   $page = preg_replace('#(.img) *(name="\*[0-9][0-9][0-9][0-9][^>]*) src="([^"]*)"([^>]*>)#', '<a href="${3}">${1} class="original" ${2} src="${3}"${4}</a>', $page);
-
-  // When there are multiple links back to back with no
-  // intervening text, join them together into a single link.
-  // The general-case expression sometimes joined together
-  // links with different targets.  Removing these correctly
-  // with a back-reference is not convenient, so we'll just
-  // special-case a few common instances where this happens.
-  $page = preg_replace("#(Master|Response|\[See|[1-9][0-9]*-[1-9][0-9]*|for|the|original|comment\])</span></a></div>[ \t\n]*<div[^>]*><a[^>]*><span[^>]*>#m", '${1} ', $page);
 
   return $page;
 }

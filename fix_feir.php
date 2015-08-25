@@ -41,6 +41,8 @@ foreach ($input_files as $file) {
   $input = $input_dir . '/' . $file;
 
   $page = file_get_contents($input);
+  $page = fix_early($page);
+
   // Find the page number at the bottom of the page,
   // and make an entry in the page map for it.
   // We will use the page map to add links to the
@@ -180,9 +182,12 @@ foreach ($input_files as $file) {
   $page = str_replace(array_keys($page_map), array_values($page_map), $page);
   $page = str_replace(array_keys($dir_map), array_values($dir_map), $page);
 
-  // Fix up any cross-references that might need hyperlinks
+  // Fix up any cross-references that might need hyperlinks.
+  // These cross-references are always in the form LABELNNN-MMM.
+  // We insure that there is no number after the reference, so that
+  // NNN-MM does not match NNN-MMM and split a label in the middle.
   foreach ($reference_map as $reference => $url) {
-    $page = preg_replace('@' . $reference . '@', "<a href='$url'>$reference</a>", $page);
+    $page = preg_replace('@' . $reference . '([^0-9])@', "<a href='$url'>$reference</a>\${1}", $page);
   }
 
   // Check to see if there are any back-references on this page.
@@ -205,6 +210,9 @@ foreach ($input_files as $file) {
   // Remove any unreplaced page references; most of these were
   // probably linked in error.
   $page = preg_replace('@<a href="../###_[^"]*">([^<]*)</a>@', '${1}', $page);
+  // Remove any links to the page that we are currently on.  This
+  // is typically just the page number at the bottom of the page.
+  $page = preg_replace('@<a href="' . $this_page_url . '">([^<]*)</a>@', '${1}', $page);
 
   file_put_contents($output, $page);
 }

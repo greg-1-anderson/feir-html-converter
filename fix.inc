@@ -156,10 +156,13 @@ function fix_page($page, $input) {
   // Convert the background image into a thumbnail. Clicking on it will show the original background image.
   $page = preg_replace('#(.img) *(name="\*[0-9][0-9][0-9][0-9][^>]*) src="([^"]*)"([^>]*>)#', '<a href="${3}">${1} class="original" ${2} src="${3}"${4}</a>', $page);
 
-  // When there are multiple links back to back with no intervening text,
-  // join them together into a single link.
-  // This is nice, but buggy; it sometimes joins different links.  Disable it until it is fixed.
-  // $page = preg_replace("#</span></a></div>[ \t\n]*<div[^>]*><a[^>]*><span[^>]*>#m", ' ', $page);
+  // When there are multiple links back to back with no
+  // intervening text, join them together into a single link.
+  // The general-case expression sometimes joined together
+  // links with different targets.  Removing these correctly
+  // with a back-reference is not convenient, so we'll just
+  // special-case a few common instances where this happens.
+  $page = preg_replace("#(Master|Response|\[See|[1-9][0-9]*-[1-9][0-9]*|for|the|original|comment\])</span></a></div>[ \t\n]*<div[^>]*><a[^>]*><span[^>]*>#m", '${1} ', $page);
 
   return $page;
 }

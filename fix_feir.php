@@ -36,6 +36,7 @@ foreach($dir_list as $dir) {
 // Iterate over all the input files once just to build the
 // mapping from subsection page number (e.g. 2.9.3-1) to
 // section page number (e.g. 2.9-nnn).
+$chapter_pages = array();
 foreach ($input_files as $file) {
   $input = $input_dir . '/' . $file;
 
@@ -47,17 +48,45 @@ foreach ($input_files as $file) {
   if (preg_match_all('/span id="\*[0-9]*"[^>]*>([1-9][0-9\.]*)-([1-9][0-9]*)/', $page, $match_sets, PREG_SET_ORDER)) {
     $matches = array_pop($match_sets);
     $key = $matches[1];
-    $pg = sprintf("%04d", $matches[2]);
-    $dir = dirname($file);
-    // TODO:  We could use MATH here.
-    //
-    // This will make entries that look like this:
-    //      '#DIRECTORY_NAME_2.10.3#/pg_0001.htm' => '2-10_individuals-rtc_feir/pg_0019.htm',
-    // From here on out, all other entries in section
-    // 2.10.3 will always point from page N to page (19 - 1) + N.
-    // So, we could store only the first entry, and do math
-    // to calculate the page of the others.  Maybe later.
-    $page_map["#DIRECTORY_NAME_${key}#/pg_$pg.htm"] = $file;
+    $pg = $matches[2];
+    if (($file[0] > '0') && ((strlen($key) == 1) || ($key[1] == '.'))) {
+      if ($key[0] != $file[0]) {
+        print "Mismatch between $key and $file on pg $pg\n";
+      }
+      else {
+        $pg_leading_zeros = sprintf("%04d", $pg);
+        $dir = dirname($file);
+        // We can use MATH here.
+        //
+        // This will make entries that look like this:
+        //      '#DIRECTORY_NAME_2.10.3#/pg_0001.htm' => '2-10_individuals-rtc_feir/pg_0019.htm',
+        // From here on out, all other entries in section
+        // 2.10.3 will always point from page N to page (19 - 1) + N.
+        // So, we could store only the first entry, and do math
+        // to calculate the page of the others.  Maybe later.
+        preg_match('@pg_0*([0-9]+)@', $file, $matches);
+        if (!empty($matches)) {
+          $file_pg = $matches[1];
+          $base_page = $file_pg - $pg;
+          $base_file = preg_replace('@/pg_.*@', '', $file);
+          if (isset($chapter_pages[$key][$base_file])) {
+            if ($chapter_pages[$key][$base_file]['max'] < $pg) {
+              $chapter_pages[$key][$base_file]['max'] = $pg;
+            }
+          }
+          else {
+            $chapter_pages[$key][$base_file] = array(
+              'base' => $base_page,
+              'max' => $pg,
+            );
+          }
+        }
+
+        // Make an entry in the page map
+        $k = "#DIRECTORY_NAME_${key}#/pg_$pg_leading_zeros.htm";
+        $page_map[$k] = $file;
+      }
+    }
   }
 
   // Find all of the "[See ..." references, and make an
@@ -76,6 +105,54 @@ foreach ($input_files as $file) {
         $backlink_reference_map[$reference_label] = '../' . $file;
         $backlink_references[$reference_url][] = $reference_label;
       }
+    }
+  }
+}
+
+// Fill in the gaps in the page map using MATH.
+foreach ($chapter_pages as $key => $file_info) {
+  foreach ($file_info as $base_file => $info) {
+    $base = $info['base'];
+    $max = $info['max'];
+    $delta = 0;
+    if ($base < 0) {
+      $delta = -$base;
+      $max = $max + $base;
+      $base = 0;
+    }
+    for ($pg = 1; $pg <= $max; $pg++) {
+      $pg_leading_zeros = sprintf("%04d", $pg + $delta);
+      $k = "#DIRECTORY_NAME_${key}#/pg_$pg_leading_zeros.htm";
+      $file_pg = $pg + $base;
+      $file_pg_leading_zeros = sprintf("%04d", $file_pg);
+      $file = $base_file . "/pg_$file_pg_leading_zeros.htm";
+      if (FALSE) {
+        if (array_key_exists($k, $page_map)) {
+          if ($page_map[$k] != $file) {
+            // This usually means that $k => $file was mis-OCR'ed
+            // (e.g. p. "617" OCR'ed as "61 7", and interpreted
+            // as p. 61.)  We will just allow our calculated value
+            // to overwrite the OCR'ed value.
+            //
+            // Pages with OCR errors in page numbers:
+            //  5_comments-on-deir_feir_pt1/pg_0019.htm
+            //  5_comments-on-deir_feir_pt1/pg_0141.htm
+            //  5_comments-on-deir_feir_pt2/pg_0038.htm
+            //  5_comments-on-deir_feir_pt2/pg_0116.htm
+            //  5_comments-on-deir_feir_pt2/pg_0213.htm
+            //  5_comments-on-deir_feir_pt2/pg_0244.htm
+            //  5_comments-on-deir_feir_pt2/pg_0314.htm
+            //
+            print "*** Inconsistent page map entry detected:\n";
+            print "*** $k => $file and " . $page_map[$k] . "\n\n";
+          }
+        }
+        else {
+          print "::: $k => $file\n";
+        }
+      }
+      // Always believe the Math.
+      $page_map[$k] = $file;
     }
   }
 }

@@ -3,8 +3,20 @@
 // Usage: php fix_feir.php /path/to/html-src-dir /path/to/html-output-dir
 $input_dir = getcwd() . '/' . $argv[1];
 $output_dir = getcwd() . '/' . $argv[2];
+$singlepage_dir = FALSE;
+$singlepage = FALSE;
 
 include __DIR__ . '/fix.inc';
+
+@mkdir($output_dir);
+
+if (isset($argv[3])) {
+  $singlepage_dir = getcwd() . '/' . $argv[3];
+  $singlepage = $singlepage_dir . '/index.htm';
+  @mkdir($singlepage_dir);
+  file_put_contents($singlepage, get_singlepage_header());
+  //
+}
 
 $dir_list = scandir($input_dir);
 $dir_map = array();
@@ -159,6 +171,7 @@ foreach ($chapter_pages as $key => $file_info) {
   }
 }
 
+$count = 0;
 // Iterate over all of the input files again and process them
 foreach ($input_files as $file) {
   $input = $input_dir . '/' . $file;
@@ -207,6 +220,10 @@ foreach ($input_files as $file) {
 
   $page = fix_links($page);
 
+  if (($singlepage) && (basename($file) != 'index.htm')) {
+    file_put_contents($singlepage, convert_singlepage($page, $input), FILE_APPEND);
+  }
+
   // Remove any unreplaced page references; most of these were
   // probably linked in error.
   $page = preg_replace('@<a href="../###_[^"]*">([^<]*)</a>@', '${1}', $page);
@@ -215,4 +232,14 @@ foreach ($input_files as $file) {
   $page = preg_replace('@<a href="' . $this_page_url . '">([^<]*)</a>@', '${1}', $page);
 
   file_put_contents($output, $page);
+
+  $count++;
+  if ($count > 4) {
+    exit(0);
+  }
 }
+
+if ($singlepage) {
+  file_put_contents($singlepage, get_singlepage_footer(), FILE_APPEND);
+}
+

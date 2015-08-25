@@ -78,6 +78,7 @@ function get_css() {
   left: 8px;
   margin-left: 16px;
 }
+
 #header .right-controls {
   position: absolute;
   top: 8px;
@@ -99,6 +100,47 @@ img.original {
   left: 8px;
   padding: 2px;
 }
+-->
+</style>';
+}
+
+function get_singlepage_css() {
+  return '<style type="text/css">
+<!--
+
+.singlepage {
+  background: #aab;
+}
+
+.page {
+  border: 2px solid black;
+  background: #fff;
+  margin: 8px;
+  padding: 8px;
+}
+
+ul.toc {
+  margin-top: 48px;
+  margin-left: 48px;
+}
+
+img.original {
+  width: 64px;
+  height: auto;
+  position: absolute;
+  top: 48px;
+  border: 1px solid #000;
+  left: 8px;
+  padding: 2px;
+}
+
+select {font-size:12px;}
+A:link {text-decoration: none; color: black; border-bottom: 1px dashed red;}
+A:visited {text-decoration: none; color: black; border-bottom: 1px dashed purple;}
+A:active {text-decoration: none; color: black; border-bottom: 2px solid red;}
+A:hover {text-decoration: none; color: black; border-bottom: 1px solid red;}
+
+.pos {position:relative; z-index: 0; left: 0px; top: 0px;}
 -->
 </style>';
 }
@@ -164,7 +206,7 @@ function fix_page($page, $input) {
   }
 
   // Insert a page header with previous / next links
-  $page = preg_replace('@<body([^>]*)>@', "<body\${1}><div id='header'> <div class='left-controls'>$prev_link $next_link</a> <a class='up' href='index.htm'> GO </a> $toc_control</div> <h3>$title</h3> <div class='right-controls'>$prev_link $next_link</a></div> </div>", $page);
+  $page = preg_replace('@<body([^>]*)>@', "<body\${1}><div id='header'> <div class='left-controls'>$prev_link $next_link</a> <a class='up' href='index.htm'> GO </a> $toc_control</div> <h3>$title</h3> <div class='right-controls'>$prev_link $next_link</a></div> </div><!-- end header -->", $page);
 
   // Remove the provided links to the index page
   $page = preg_replace('@<div([^>]*)><font([^>]*)>Pages: <a href="index.htm">Index</a> *</font> *</div>@', '', $page);
@@ -216,11 +258,31 @@ function fix_go_to_page($page, $input) {
   $next_link = $has_next ? " <a class='next' href='${matches[1]}'>&gt;</a> " : '<span>&gt;</span>';
 
   // Insert a page header with previous / next links
-  $page = "<html><head>" . get_css() . "</head><body><div id='header'> <div class='left-controls'>$prev_link $next_link</a> <span class='selected'> GO </span> <a class='up' href='../0_toc_feir/pg_0001.htm'> TOC </a></div> <h3>$title</h3> <div class='right-controls'>$prev_link $next_link</a></div> </div><ul class='toc'>" . $page . "</ul></body></html>";
+  $page = "<html><head>" . get_css() . "</head><body><div id='header'> <div class='left-controls'>$prev_link $next_link</a> <span class='selected'> GO </span> <a class='up' href='../0_toc_feir/pg_0001.htm'> TOC </a></div> <h3>$title</h3> <div class='right-controls'>$prev_link $next_link</a></div> </div><!-- end header --><ul class='toc'>" . $page . "</ul></body></html>";
 
   // Convert TOC links into a list
   $page = preg_replace('@<font[^>]*>[^<]*</font>@', '', $page);
   $page = preg_replace('@(<a href="[^"]*">[^>]*</a>)@', '<li>${1}</li>', $page);
 
   return $page;
+}
+
+function get_singlepage_header() {
+  return '<html><head>' . get_singlepage_css() . '</head><body class="singlepage">';
+}
+
+// Convert a page from one-html-page-per-page
+// format into a fragment of a document that contains
+// all of the FEIR pages.
+function convert_singlepage($page, $input) {
+  $page = preg_replace('@.*\<body[^>]*>@mis', "<div class='page'><a name=''></a>", $page);
+  $page = preg_replace("@\<div id='header'.*end header -->@mis", '', $page);
+  $page = preg_replace('@<script[^>]*>[^<]*</script>@mis', '', $page);
+  $page = preg_replace('@<a[^>]*>(Previous|Next)</a>@', '', $page);
+  $page = preg_replace('@\</body>.*@mis', "\n</div><!-- page end -->\n\n", $page);
+  return $page;
+}
+
+function get_singlepage_footer() {
+  return '</body></html>';
 }

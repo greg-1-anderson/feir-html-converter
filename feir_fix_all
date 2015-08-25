@@ -5,6 +5,7 @@ fix_script="$script_dir/fix_feir.php"
 create_index_script="$script_dir/create_feir_index.php"
 base_dir="$(echo "$1" | sed -e 's#/*$##')"
 output_dir="$base_dir-FIXED"
+singlepage_dir="$base_dir-SINGLE"
 
 #
 # Copy all of the .png files
@@ -23,4 +24,6 @@ done
 #
 # Call the fix-it script to fix up all of the .htm files
 #
-php $fix_script $base_dir $output_dir
+# Single-page formatting is messed up.
+#
+php $fix_script $base_dir $output_dir # $singlepage_dir

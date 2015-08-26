@@ -32,6 +32,68 @@ function word_exists_on_page($page, $word) {
   return !empty($matches);
 }
 
+function numeric_string_compare($a, $b) {
+  $numeric_regex = '@([0-9]*)([^0-9]*)@';
+  preg_match_all($numeric_regex, $a, $a_match_sets, PREG_SET_ORDER);
+  preg_match_all($numeric_regex, $b, $b_match_sets, PREG_SET_ORDER);
+  $a_parts = get_sequences_from_match_sets($a_match_sets);
+  $b_parts = get_sequences_from_match_sets($b_match_sets);
+
+  return array_numeric_compare($a_parts, $b_parts);
+}
+
+function array_numeric_compare($a, $b) {
+  foreach ($a as $a_part) {
+    // If we run out of parts of "b" while
+    // we are still in the middle of "a",
+    // then "a" is bigger.
+    if (empty($b)) {
+      return 1;
+    }
+    $b_part = array_shift($b);
+    // If both the "a" and the "b" components are
+    // numeric, then force a numeric compare.  Otherwise,
+    // use a string compare.
+    if (is_numeric($a_part) && is_numeric($b_part)) {
+      $a_part = (int)$a_part;
+      $b_part = (int)$b_part;
+    }
+    // If one part is bigger than the other, then return
+    // the result.  Otherwise, keep comparing.
+    $result = ($a_part > $b_part) - ($b_part > $a_part);
+    if ($result) {
+      return $result;
+    }
+  }
+  // If we get to the end of "a" and we still have
+  // parts of "b" left, then "b" is bigger.  Otherwise,
+  // they are equal.
+  return -(!empty($b));
+}
+
+// The preg_match_all in numeric_compare will return
+// match sets, where each element contains:
+//   0 => NNN_string
+//   1 => NNN
+//   2 => _string
+// Note that some of these may be empty.  We ignore
+// the '0' index, and return an array containing all
+// of the non-empty '1' and '2' indexes, so that the
+// end result is an undifferntiated array containing
+// either numeric or string components (but never both).
+function get_sequences_from_match_sets($match_sets) {
+  $result = array();
+  foreach ($match_sets as $matches) {
+    array_shift($matches);
+    foreach ($matches as $part) {
+      if (!empty($part)) {
+        $result[] = $part;
+      }
+    }
+  }
+  return $result;
+}
+
 function ucfirst_with_exceptions($word) {
   $exceptions = array(
     'Feir' => 'FEIR',

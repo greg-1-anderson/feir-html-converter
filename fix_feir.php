@@ -1,5 +1,7 @@
 <?php
 
+include __DIR__ . '/fix.inc';
+
 // Usage: php fix_feir.php /path/to/html-src-dir /path/to/html-output-dir
 $input_dir = getcwd() . '/' . $argv[1];
 $output_dir = getcwd() . '/' . $argv[2];
@@ -7,7 +9,6 @@ $singlepage_dir = FALSE;
 $singlepage = FALSE;
 $wordindex = $output_dir . '/wordindex.htm';
 
-include __DIR__ . '/fix.inc';
 
 @mkdir($output_dir);
 
@@ -46,6 +47,11 @@ foreach($dir_list as $dir) {
     }
   }
 }
+
+// The input files are going to be in filesystem
+// order, which is not necessarily what we want.
+// Re-sort them numericallly.
+usort($input_files, 'numeric_string_compare');
 
 // Iterate over all the input files once just to build the
 // mapping from subsection page number (e.g. 2.9.3-1) to

@@ -24,6 +24,4 @@ done
 #
 # Call the fix-it script to fix up all of the .htm files
 #
-# Single-page formatting is messed up.
-#
-php $fix_script $base_dir $output_dir # $singlepage_dir
+php $fix_script $base_dir $output_dir $singlepage_dir

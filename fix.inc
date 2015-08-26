@@ -1,5 +1,37 @@
 <?php
 
+function get_index_words() {
+  //
+  // Terms that were removed, because they were too common
+  //
+  //     "Wind",
+  //
+  return array(
+    "Champion Speedway",
+    "Icehouse Hill",
+    "Kinder Morgan",
+    "Lumberyard",
+    "Old bay mud",
+    "Rail spur",
+    "Recology",
+    "Schlage Lock",
+    "Shooting range",
+    "Solar",
+    "Tank farm",
+    "Tidal action",
+    "Toxic Air Contaminants",
+    "Toxic gas",
+    "Visitation Creek",
+    "VOC gases",
+    "Water quality",
+  );
+}
+
+function word_exists_on_page($page, $word) {
+  preg_match("@$word@i", $page, $matches);
+  return !empty($matches);
+}
+
 function ucfirst_with_exceptions($word) {
   $exceptions = array(
     'Feir' => 'FEIR',
@@ -109,14 +141,17 @@ function get_singlepage_css() {
 <!--
 
 .singlepage {
-  background: #aab;
+  background: #bbc;
 }
 
 .page {
+  position: relative;
   border: 2px solid black;
   background: #fff;
   margin: 8px;
   padding: 8px;
+  height: 1800px;
+  overflow: hidden;
 }
 
 ul.toc {
@@ -140,7 +175,7 @@ A:visited {text-decoration: none; color: black; border-bottom: 1px dashed purple
 A:active {text-decoration: none; color: black; border-bottom: 2px solid red;}
 A:hover {text-decoration: none; color: black; border-bottom: 1px solid red;}
 
-.pos {position:relative; z-index: 0; left: 0px; top: 0px;}
+.pos {position:absolute; z-index: 0; left: 0px; top: 0px;}
 -->
 </style>';
 }
@@ -268,17 +303,35 @@ function fix_go_to_page($page, $input) {
 }
 
 function get_singlepage_header() {
-  return '<html><head>' . get_singlepage_css() . '</head><body class="singlepage">';
+  return '<html><head><META http-equiv=Content-Type content="text/html; charset=utf-8">' . get_singlepage_css() . '</head><body class="singlepage">';
 }
 
 // Convert a page from one-html-page-per-page
 // format into a fragment of a document that contains
 // all of the FEIR pages.
 function convert_singlepage($page, $input) {
-  $page = preg_replace('@.*\<body[^>]*>@mis', "<div class='page'><a name=''></a>", $page);
+  $dir = basename(dirname($input));
+  $name = basename($input, ".htm");
+  $anchor_name = $dir . '_' . $name;
+
+  // Take off the first part of the page, and replace
+  // it with a 'page' div and an anchor.
+  $page = preg_replace('@.*\<body[^>]*>@mis', "<div class='page'><a name='$anchor_name'></a>", $page);
+  // Remove the controls at the top of the page we inserted
   $page = preg_replace("@\<div id='header'.*end header -->@mis", '', $page);
+  // Remove the image thumbnails
+  $page = preg_replace('@<a href="pg_[^>]*>[^<]*<img[^>]*>[^<]*</a>@mis', '', $page);
+  // Remove all of the 'script' tags
   $page = preg_replace('@<script[^>]*>[^<]*</script>@mis', '', $page);
+  // Remove the Previous / Next at the bottom of each page.
   $page = preg_replace('@<a[^>]*>(Previous|Next)</a>@', '', $page);
+  // Find all of the links in the form "../dir/name.htm", and
+  // convert them to "#dir_name" instead.  This will match the
+  // anchor that we insert at the top of each page.
+  $page = preg_replace('@href="../([^/]*)/([^.]*)\.htm"@', 'href="#${1}_${2}"', $page);
+  $page = preg_replace("@href='../([^/]*)/([^.]*)\\.htm'@", 'href="#${1}_${2}"', $page);
+  // Remove the end of the page, and replace it with
+  // the end-div for the page.
   $page = preg_replace('@\</body>.*@mis', "\n</div><!-- page end -->\n\n", $page);
   return $page;
 }

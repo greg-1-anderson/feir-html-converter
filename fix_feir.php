@@ -5,6 +5,7 @@ $input_dir = getcwd() . '/' . $argv[1];
 $output_dir = getcwd() . '/' . $argv[2];
 $singlepage_dir = FALSE;
 $singlepage = FALSE;
+$wordindex = $output_dir . '/wordindex.htm';
 
 include __DIR__ . '/fix.inc';
 
@@ -25,6 +26,7 @@ $backlink_reference_map = array();
 $backlink_references = array();
 $page_map = array();
 $input_files = array();
+$file_to_page_number = array();
 foreach($dir_list as $dir) {
   // Build a mapping of directory names that are siblings of
   // the input directory.  We will use this later for replacements
@@ -59,6 +61,7 @@ foreach ($input_files as $file) {
   // and make an entry in the page map for it.
   // We will use the page map to add links to the
   // table of contents.
+  $page_reference = FALSE;
   if (preg_match_all('/span id="\*[0-9]*"[^>]*>([1-9][0-9\.]*)-([1-9][0-9]*)/', $page, $match_sets, PREG_SET_ORDER)) {
     $matches = array_pop($match_sets);
     $key = $matches[1];
@@ -135,7 +138,8 @@ foreach ($chapter_pages as $key => $file_info) {
       $base = 0;
     }
     for ($pg = 1; $pg <= $max; $pg++) {
-      $pg_leading_zeros = sprintf("%04d", $pg + $delta);
+      $chapter_page = $pg + $delta;
+      $pg_leading_zeros = sprintf("%04d", $chapter_page);
       $k = "###_${key}#/pg_$pg_leading_zeros.htm";
       $file_pg = $pg + $base;
       $file_pg_leading_zeros = sprintf("%04d", $file_pg);
@@ -167,12 +171,19 @@ foreach ($chapter_pages as $key => $file_info) {
       }
       // Always believe the Math.
       $page_map[$k] = $file;
+      $file_to_page_number[$file] = "${key}-$chapter_page";
     }
   }
 }
 
+$index_words = get_index_words();
+$index_map = array();
+
 $count = 0;
 // Iterate over all of the input files again and process them
+// TODO: to make single-page mode come out correctly, we need
+// to sort $input_files so that they are processed in order.
+// At the moment, 2.10 is processed before 2.2, etc.
 foreach ($input_files as $file) {
   $input = $input_dir . '/' . $file;
   $output = $output_dir . '/' . $file;
@@ -181,6 +192,15 @@ foreach ($input_files as $file) {
   @mkdir(dirname($output));
 
   $page = file_get_contents($input);
+
+  // Search for words in the index if the page has a page number
+  if (array_key_exists($file, $file_to_page_number)) {
+    foreach ($index_words as $word) {
+      if (word_exists_on_page($page, $word)) {
+        $index_map[$word][] = $file_to_page_number[$file];
+      }
+    }
+  }
 
   if (basename($file) == 'index.htm') {
     $page = fix_go_to_page($page, $file);
@@ -220,10 +240,6 @@ foreach ($input_files as $file) {
 
   $page = fix_links($page);
 
-  if (($singlepage) && (basename($file) != 'index.htm')) {
-    file_put_contents($singlepage, convert_singlepage($page, $input), FILE_APPEND);
-  }
-
   // Remove any unreplaced page references; most of these were
   // probably linked in error.
   $page = preg_replace('@<a href="../###_[^"]*">([^<]*)</a>@', '${1}', $page);
@@ -231,13 +247,26 @@ foreach ($input_files as $file) {
   // is typically just the page number at the bottom of the page.
   $page = preg_replace('@<a href="' . $this_page_url . '">([^<]*)</a>@', '${1}', $page);
 
+  if (($singlepage) && (basename($file) != 'index.htm')) {
+    file_put_contents($singlepage, convert_singlepage($page, $input), FILE_APPEND);
+  }
+
   file_put_contents($output, $page);
 
   $count++;
-  if ($count > 4) {
-    exit(0);
-  }
+  //if ($count > 4) {
+  //  exit(0);
+  //}
 }
+
+// Create the word index file.
+uksort($index_map, 'strcasecmp');
+$wordindex_page = "<ul>";
+foreach ($index_map as $word => $pagelist) {
+  $wordindex_page .= "<li><b>$word</b> - " . implode(", ", $pagelist);
+}
+$wordindex_page .= "</ul>";
+file_put_contents($wordindex, $wordindex_page);
 
 if ($singlepage) {
   file_put_contents($singlepage, get_singlepage_footer(), FILE_APPEND);

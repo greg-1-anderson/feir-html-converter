@@ -39,7 +39,8 @@ function numeric_string_compare($a, $b) {
   $a_parts = get_sequences_from_match_sets($a_match_sets);
   $b_parts = get_sequences_from_match_sets($b_match_sets);
 
-  return array_numeric_compare($a_parts, $b_parts);
+  $result = array_numeric_compare($a_parts, $b_parts);
+  return $result;
 }
 
 function array_numeric_compare($a, $b) {
@@ -91,7 +92,20 @@ function get_sequences_from_match_sets($match_sets) {
       }
     }
   }
+
+  // Special checking: a string that starts with a non-alphanumeric
+  // character will be considered to come BEFORE strings that
+  // start with alphanumeric characters, regardless of the ascii
+  // order of said string.
+  if (!empty($result) && (!is_alnum($result[0]))) {
+    array_unshift($result, -1);
+  }
+
   return $result;
+}
+
+function is_alnum($c) {
+  return preg_match('@^[0-9a-zA-Z]@', $c);
 }
 
 function ucfirst_with_exceptions($word) {
@@ -182,7 +196,7 @@ function get_css() {
 
 ul.toc {
   margin-top: 48px;
-  margin-left: 48px;
+  margin-left: 128px;
 }
 
 img.original {
@@ -280,7 +294,7 @@ function fix_early($page) {
   return $page;
 }
 
-function fix_page($page, $input) {
+function fix_page($page, $input, $previous_dir, $next_dir) {
   $page = fix_early($page);
 
   // Fix the page title -- convert the input path into a title string
@@ -296,6 +310,13 @@ function fix_page($page, $input) {
   $has_next = preg_match('<a href="([^"]*)" title="Go to next page">', $page, $matches);
   $next_link = $has_next ? " <a class='next' href='${matches[1]}'>&gt;</a> " : '<span>&gt;</span>';
 
+  // Build the previous and next section links
+  if ($pg_number > 1) {
+    $previous_dir = basename(dirname($input));
+  }
+  $prev_section_link = $previous_dir ? " <a class='prev' href='../$previous_dir/pg_0001.htm'>&lt;&lt;</a> " : '<span>&lt;&lt;</span>';
+  $next_section_link = $next_dir ? " <a class='next' href='../$next_dir/pg_0001.htm'>&gt;&gt;</a> " : '<span>&gt;&gt;</span>';
+
   // We will put the TOC control on every page except for the first TOC page itself
   $toc_control = "<a class='up' href='../0_toc_feir/pg_0001.htm'> TOC </a>";
   if (strstr($toc_control, dirname($input)) !== FALSE) {
@@ -303,7 +324,7 @@ function fix_page($page, $input) {
   }
 
   // Insert a page header with previous / next links
-  $page = preg_replace('@<body([^>]*)>@', "<body\${1}><div id='header'> <div class='left-controls'>$prev_link $next_link</a> <a class='up' href='index.htm'> GO </a> $toc_control</div> <h3>$title</h3> <div class='right-controls'>$prev_link $next_link</a></div> </div><!-- end header -->", $page);
+  $page = preg_replace('@<body([^>]*)>@', "<body\${1}><div id='header'> <div class='left-controls'>$prev_link $next_link $prev_section_link $next_section_link <a class='up' href='index.htm'> GO </a> $toc_control</div> <h3>$title</h3> <div class='right-controls'>$prev_section_link $next_section_link $prev_link $next_link</div> </div><!-- end header -->", $page);
 
   // Remove the provided links to the index page
   $page = preg_replace('@<div([^>]*)><font([^>]*)>Pages: <a href="index.htm">Index</a> *</font> *</div>@', '', $page);
@@ -340,7 +361,7 @@ function fix_links($page) {
   return $page;
 }
 
-function fix_go_to_page($page, $input) {
+function fix_go_to_page($page, $input, $previous_dir, $next_dir) {
   // Fix the page title -- convert the input path into a title string
   $section_number = section_number($input);
   $pg_number = page_number($input);
@@ -348,14 +369,19 @@ function fix_go_to_page($page, $input) {
   $title = $section_number . ' ' . $section_title . ' - Go To Page';
   $page = preg_replace('#<title>([^<]*)</title>#', "<title>$title" . '</title>', $page);
 
-  // Get the previous and next links, if they exist
-  $has_prev = preg_match('<a href="([^"]*)" title="Go to previous page">', $page, $matches);
-  $prev_link = $has_prev ? " <a class='prev' href='${matches[1]}'>&lt;</a> " : '<span>&lt;</span>';
-  $has_next = preg_match('<a href="([^"]*)" title="Go to next page">', $page, $matches);
-  $next_link = $has_next ? " <a class='next' href='${matches[1]}'>&gt;</a> " : '<span>&gt;</span>';
+  // Always use the "disabled" state for next and prev here.
+  $prev_link = '<span>&lt;</span>';
+  $next_link = '<span>&gt;</span>';
+
+  // Build the previous and next section links
+  if ($pg_number > 1) {
+    $previous_dir = basename(dirname($input));
+  }
+  $prev_section_link = $previous_dir ? " <a class='prev' href='../$previous_dir/pg_0001.htm'>&lt;&lt;</a> " : '<span>&lt;&lt;</span>';
+  $next_section_link = $next_dir ? " <a class='next' href='../$next_dir/pg_0001.htm'>&gt;&gt;</a> " : '<span>&gt;&gt;</span>';
 
   // Insert a page header with previous / next links
-  $page = "<html><head>" . get_css() . "</head><body><div id='header'> <div class='left-controls'>$prev_link $next_link</a> <span class='selected'> GO </span> <a class='up' href='../0_toc_feir/pg_0001.htm'> TOC </a></div> <h3>$title</h3> <div class='right-controls'>$prev_link $next_link</a></div> </div><!-- end header --><ul class='toc'>" . $page . "</ul></body></html>";
+  $page = "<html><head>" . get_css() . "</head><body><div id='header'> <div class='left-controls'>$prev_link $next_link $prev_section_link $next_section_link <span class='selected'> GO </span> <a class='up' href='../0_toc_feir/pg_0001.htm'> TOC </a></div> <h3>$title</h3> <div class='right-controls'>$prev_section_link $next_section_link $prev_link $next_link</div> </div><!-- end header --><ul class='toc'>" . $page . "</ul></body></html>";
 
   // Convert TOC links into a list
   $page = preg_replace('@<font[^>]*>[^<]*</font>@', '', $page);

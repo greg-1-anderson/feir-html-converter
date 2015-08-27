@@ -21,6 +21,18 @@ if (isset($argv[3])) {
 }
 
 $dir_list = scandir($input_dir);
+
+// The directory are going to be in filesystem
+// order, which is not necessarily what we want.
+// Re-sort them numericallly.
+//
+// Note that for our current data set, only
+// chapter 2.10 is out of order.  This sort
+// operation moves it from where it is (between
+// chapters 2.1 and 2.2) to where it belongs
+// (after 2.9).
+usort($dir_list, 'numeric_string_compare');
+
 $dir_map = array();
 $reference_map = array();
 $backlink_reference_map = array();
@@ -28,11 +40,28 @@ $backlink_references = array();
 $page_map = array();
 $input_files = array();
 $file_to_page_number = array();
+$previous_dir = FALSE;
+$previous_dir_list = array();
+$next_dir_list = array();
 foreach($dir_list as $dir) {
+  $previous_dir_list[$dir] = FALSE;
+  $next_dir_list[$dir] = FALSE;
+
   // Build a mapping of directory names that are siblings of
   // the input directory.  We will use this later for replacements
   // in page links.
   if (preg_match('/^([0-9-]*)_/', $dir, $matches)) {
+    // Build a mapping from each directory to
+    // its previous and next directory.  We
+    // use this to build the << and >> controls
+    // (beginning of previous section, and beginning
+    // of next section, respectively).
+    $previous_dir_list[$dir] = $previous_dir;
+    if ($previous_dir) {
+      $next_dir_list[$previous_dir] = $dir;
+    }
+    $previous_dir = $dir;
+
     $key = strtr($matches[1], '-', '.');
     if (!empty($key[0])) {
       $dir_map["###_${key}#"] = $dir;
@@ -51,6 +80,9 @@ foreach($dir_list as $dir) {
 // The input files are going to be in filesystem
 // order, which is not necessarily what we want.
 // Re-sort them numericallly.
+//
+// Note that for our current data set, this operation
+// should not change the order of the files.
 usort($input_files, 'numeric_string_compare');
 
 // Iterate over all the input files once just to build the
@@ -191,6 +223,9 @@ $count = 0;
 // to sort $input_files so that they are processed in order.
 // At the moment, 2.10 is processed before 2.2, etc.
 foreach ($input_files as $file) {
+  $dir = basename(dirname($file));
+  $previous_dir = $previous_dir_list[$dir];
+  $next_dir = $next_dir_list[$dir];
   $input = $input_dir . '/' . $file;
   $output = $output_dir . '/' . $file;
 
@@ -209,10 +244,10 @@ foreach ($input_files as $file) {
   }
 
   if (basename($file) == 'index.htm') {
-    $page = fix_go_to_page($page, $file);
+    $page = fix_go_to_page($page, $file, $previous_dir, $next_dir);
   }
   else {
-    $page = fix_page($page, $file);
+    $page = fix_page($page, $file, $previous_dir, $next_dir);
   }
 
   $page = fix_common($page);
